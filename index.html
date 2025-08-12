@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>내 약물 궁합 체크해봐요! 💊✨</title>
+<style>
+  body { 
+    font-family: 'Nanum Gothic', 'Apple SD Gothic Neo', '맑은 고딕', sans-serif; 
+    max-width: 600px; margin: 30px auto; padding: 25px; 
+    background: #fff9f5; color: #4a4a4a; 
+    line-height: 1.5;
+  }
+  h1 { 
+    text-align: center; color: #ff6f61; font-weight: 800; 
+    margin-bottom: 35px; font-size: 2.4rem;
+  }
+  label { 
+    font-weight: 700; font-size: 1.1rem; margin-top: 20px; display: block; 
+    color: #ff6f61;
+  }
+  input[type=text] {
+    width: 100%; padding: 12px 15px; margin-top: 7px; 
+    font-size: 1.05rem; border: 2px solid #ffb6a1; border-radius: 10px; 
+    box-sizing: border-box;
+    transition: border-color 0.3s ease;
+  }
+  input[type=text]:focus {
+    border-color: #ff6f61;
+    outline: none;
+    background: #fff1ec;
+  }
+  button {
+    margin-top: 28px; width: 100%; 
+    background: #ff6f61; color: white; border: none; 
+    padding: 14px; font-size: 1.25rem; cursor: pointer; border-radius: 12px; 
+    font-weight: 700;
+    box-shadow: 0 6px 12px rgba(255,111,97,0.4);
+    transition: background-color 0.3s ease;
+  }
+  button:hover {
+    background: #e95a4d;
+  }
+  #result {
+    margin-top: 30px; padding: 22px; border-radius: 14px; 
+    background: #fff1ec; box-shadow: 0 2px 8px rgba(255,111,97,0.2); 
+    min-height: 130px; white-space: pre-wrap;
+    color: #4a4a4a;
+    font-weight: 600;
+    font-size: 1.05rem;
+    overflow-wrap: break-word;
+  }
+  .ok { color: #2e7d32; font-weight: 700; }
+  .warn { color: #f9a825; font-weight: 700; }
+  .danger { color: #c62828; font-weight: 700; }
+  footer { 
+    margin-top: 45px; font-size: 13px; color: #aaa; text-align: center; 
+    font-style: italic;
+  }
+  .loading { font-style: italic; color: #b35348; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<h1>내 약물 궁합 체크해봐요! 💊✨</h1>
+
+<label for="drug1">첫 번째 약 이름</label>
+<input type="text" id="drug1" placeholder="예: 타이레놀, 이부프로펜, aspirin" autocomplete="off" />
+
+<label for="drug2">두 번째 약 이름</label>
+<input type="text" id="drug2" placeholder="예: 와파린, 아스피린, warfarin" autocomplete="off" />
+
+<button id="checkBtn">궁합 확인하기</button>
+
+<div id="result" role="region" aria-live="polite"></div>
+
+<footer>
+⚠️ 참고용 서비스입니다. 전문가 상담을 꼭 받으세요.<br/>
+데이터 출처: 미국 NLM RxNav API (https://rxnav.nlm.nih.gov/)
+</footer>
+
+<script>
+const korToEngDrugMap = {
+  "타이레놀": "acetaminophen",
+  "아세트아미노펜": "acetaminophen",
+  "이부프로펜": "ibuprofen",
+  "와파린": "warfarin",
+  "아스피린": "aspirin",
+  "클로피도그렐": "clopidogrel",
+  "디곡신": "digoxin",
+  "리튬": "lithium",
+  "프레드니손": "prednisone",
+  "메토트렉세이트": "methotrexate",
+  "세로토닌": "serotonin",
+  "오메프라졸": "omeprazole",
+  "로라타딘": "loratadine",
+  "페니실린": "penicillin",
+  "암로디핀": "amlodipine",
+  "베라파밀": "verapamil",
+  "에리트로마이신": "erythromycin",
+  "테트라사이클린": "tetracycline",
+  "레보플록사신": "levofloxacin",
+  "시프로플록사신": "ciprofloxacin",
+  "코데인": "codeine",
+  "모르핀": "morphine",
+  "디아제팜": "diazepam",
+  "알프라졸람": "alprazolam",
+  "졸피뎀": "zolpidem",
+  "로라제팜": "lorazepam",
+  "히드로코돈": "hydrocodone",
+  "나프록센": "naproxen",
+  "멜록시캄": "meloxicam",
+  "케토프로펜": "ketoprofen",
+  "페니토인": "phenytoin",
+  "발프로산": "valproic acid",
+  "카바마제핀": "carbamazepine",
+  "페노바르비탈": "phenobarbital",
+  "아미트리프틸린": "amitriptyline",
+  "이미프라민": "imipramine",
+  "플루옥세틴": "fluoxetine",
+  "파록세틴": "paroxetine",
+  "설트랄린": "sertraline",
+  "에스시탈로프람": "escitalopram",
+  "벤라팍신": "venlafaxine",
+  "두록세틴": "duloxetine",
+  "할로페리돌": "haloperidol",
+  "리팜피신": "rifampin",
+  "이소니아지드": "isoniazid",
+  "에토포사이드": "etoposide",
+  "도세탁셀": "docetaxel",
+  "파클리탁셀": "paclitaxel",
+  "암호화핀": "amoxicillin",
+  "설파메톡사졸": "sulfamethoxazole",
+  "트리메토프림": "trimethoprim",
+  "시스플라틴": "cisplatin",
+  "다이아제팜": "diazepam",
+  "글리메피리드": "glimepiride",
+  "메트포르민": "metformin",
+  "인슐린": "insulin",
+  "라니티딘": "ranitidine",
+  "파마톨린": "famotidine",
+  "도부타민": "dobutamine",
+  "도파민": "dopamine",
+  "네페리딘": "nefopam",
+  "프라미펙솔": "pramipexole",
+  "로피나비르": "lopinavir",
+  "리토나비르": "ritonavir",
+  "젬피브로질": "gemfibrozil",
+  "콜레스티라민": "cholestyramine",
+  "아토르바스타틴": "atorvastatin",
+  "심바스타틴": "simvastatin",
+  "로수바스타틴": "rosuvastatin",
+  "피브레이트": "fibrate",
+  "클로르프로마진": "chlorpromazine",
+  "클로자핀": "clozapine",
+  "올란자핀": "olanzapine",
+  "퀘티아핀": "quetiapine",
+  "리스페리돈": "risperidone",
+  "졸피뎀": "zolpidem",
+  "제피르라스틴": "cefpirazole",
+  "모티리움": "domperidone",
+  "프로프라놀롤": "propranolol",
+  "아테놀롤": "atenolol",
+  "카르베딜롤": "carvedilol",
+  "메토프롤롤": "metoprolol",
+  "라베타롤": "labetalol",
+  "알테플라제": "alteplase",
+  "에피네프린": "epinephrine",
+  "피로카르피": "pilocarpine",
+  "벤조다이아제핀": "benzodiazepine",
+  "디펜히드라민": "diphenhydramine",
+  "페니라민": "pheniramine",
+  "크로르페니라민": "chlorpheniramine",
+  "플루페나진": "fluphenazine",
+  "히드로클로로티아지드": "hydrochlorothiazide",
+  "푸로세마이드": "furosemide",
+  "스피로놀락톤": "spironolactone",
+  "에날라프릴": "enalapril",
+  "리스노프릴": "lisinopril",
+  "캄프로테릭스": "camptothecin"
+  // ... 필요시 더 추가 가능
+};
+
+
+// 하드코딩 상호작용 데이터
+const hardcodedInteractions = {
+  "warfarin+aspirin": {
+    message: "⚠️ 와파린과 아스피린은 출혈 위험이 증가하니 주의하세요!",
+    reason: "혈액응고 억제로 인해 과도한 출혈 가능성이 있습니다."
+  },
+  "aspirin+warfarin": {
+    message: "⚠️ 와파린과 아스피린은 출혈 위험이 증가하니 주의하세요!",
+    reason: "혈액응고 억제로 인해 과도한 출혈 가능성이 있습니다."
+  },
+  "acetaminophen+ibuprofen": {
+    message: "⚠️ 타이레놀과 이부프로펜 병용 시 주의가 필요합니다.",
+    reason: "두 약물 모두 간과 신장에 부담을 줄 수 있습니다."
+  },
+  "ibuprofen+acetaminophen": {
+    message: "⚠️ 타이레놀과 이부프로펜 병용 시 주의가 필요합니다.",
+    reason: "두 약물 모두 간과 신장에 부담을 줄 수 있습니다."
+  },
+  "warfarin+clopidogrel": {
+    message: "⚠️ 와파린과 클로피도그렐 병용 시 출혈 위험이 크게 증가합니다.",
+    reason: "항응고제와 항혈소판제의 병용으로 출혈 가능성이 높아집니다."
+  },
+  "clopidogrel+warfarin": {
+    message: "⚠️ 와파린과 클로피도그렐 병용 시 출혈 위험이 크게 증가합니다.",
+    reason: "항응고제와 항혈소판제의 병용으로 출혈 가능성이 높아집니다."
+  },
+  "lithium+diuretics": {
+    message: "⚠️ 리튬과 이뇨제 병용 시 리튬 농도 상승 위험이 있습니다.",
+    reason: "이뇨제가 리튬 배설을 감소시켜 독성 위험을 높입니다."
+  },
+  "lithium+ace inhibitors": {
+    message: "⚠️ 리튬과 ACE 억제제 병용 시 리튬 독성 위험이 증가합니다.",
+    reason: "신장 기능 저하로 리튬 농도가 상승할 수 있습니다."
+  },
+  "digoxin+verapamil": {
+    message: "⚠️ 디곡신과 베라파밀 병용 시 디곡신 독성이 증가할 수 있습니다.",
+    reason: "베라파밀이 디곡신 대사를 저해합니다."
+  },
+  "methotrexate+NSAIDs": {
+    message: "⚠️ 메토트렉세이트와 NSAIDs 병용 시 신장독성 위험이 있습니다.",
+    reason: "NSAIDs가 메토트렉세이트 배설을 방해합니다."
+  },
+  "prednisone+fluoroquinolones": {
+    message: "⚠️ 프레드니손과 플루오로퀴놀론 항생제 병용 시 힘줄 파열 위험 증가",
+    reason: "스테로이드와 일부 항생제 병용 시 힘줄 손상 위험이 커집니다."
+  },
+  "serotonin+ssri": {
+    message: "⚠️ 세로토닌과 SSRI 병용 시 세로토닌 증후군 위험",
+    reason: "중추신경계에서 세로토닌 과잉으로 증후군 발생 가능."
+  },
+  "acetaminophen+alcohol": {
+    message: "⚠️ 타이레놀과 알코올 병용 시 간 손상 위험 증가",
+    reason: "간에 부담을 주어 간독성 위험이 증가합니다."
+  },
+  "ibuprofen+warfarin": {
+    message: "⚠️ 이부프로펜과 와파린 병용 시 출혈 위험 증가",
+    reason: "NSAIDs가 혈소판 기능을 억제하여 출혈 위험이 커집니다."
+  },
+  "aspirin+ibuprofen": {
+    message: "⚠️ 아스피린과 이부프로펜 병용 시 아스피린 효과 저하 우려",
+    reason: "이부프로펜이 아스피린의 혈소판 억제 효과를 방해할 수 있습니다."
+  },
+  "clopidogrel+omeprazole": {
+    message: "⚠️ 클로피도그렐과 오메프라졸 병용 시 약효 감소 가능성",
+    reason: "오메프라졸이 클로피도그렐 활성화를 방해할 수 있습니다."
+  },
+  "digoxin+loop diuretics": {
+    message: "⚠️ 디곡신과 루프 이뇨제 병용 시 부정맥 위험 증가",
+    reason: "이뇨제로 인한 전해질 불균형이 디곡신 독성을 악화시킵니다."
+  },
+  "lithium+NSAIDs": {
+    message: "⚠️ 리튬과 NSAIDs 병용 시 리튬 농도 상승 위험",
+    reason: "NSAIDs가 리튬 배설을 방해하여 독성이 증가할 수 있습니다."
+  },
+  "methotrexate+penicillin": {
+    message: "⚠️ 메토트렉세이트와 페니실린 병용 시 신장 독성 위험 증가",
+    reason: "페니실린이 메토트렉세이트 배설을 저해할 수 있습니다."
+  },
+  "prednisone+live vaccines": {
+    message: "⚠️ 프레드니손 복용 시 생백신 접종 위험",
+    reason: "면역억제제로 백신 접종 후 감염 위험이 커질 수 있습니다."
+  },
+  "amiodarone+warfarin": {
+    message: "⚠️ 아미오다론과 와파린 병용 시 출혈 위험 증가",
+    reason: "아미오다론이 와파린 대사를 억제합니다."
+  },
+  "simvastatin+amiodarone": {
+    message: "⚠️ 심바스타틴과 아미오다론 병용 시 근육 독성 위험 증가",
+    reason: "두 약물이 근육독성(횡문근융해증) 위험을 증가시킵니다."
+  },
+  "ciprofloxacin+theophylline": {
+    message: "⚠️ 시프로플록사신과 테오필린 병용 시 테오필린 독성 증가",
+    reason: "시프로플록사신이 테오필린 대사를 억제합니다."
+  },
+  "phenytoin+warfarin": {
+    message: "⚠️ 페니토인과 와파린 병용 시 와파린 효과 감소 가능성",
+    reason: "페니토인이 와파린 대사를 증가시킵니다."
+  },
+  "valproic acid+lamotrigine": {
+    message: "⚠️ 발프로산과 라모트리진 병용 시 라모트리진 농도 증가",
+    reason: "발프로산이 라모트리진 대사를 억제합니다."
+  },
+  "erythromycin+statins": {
+    message: "⚠️ 에리트로마이신과 스타틴 병용 시 근육 독성 위험 증가",
+    reason: "에리트로마이신이 스타틴 대사를 방해합니다."
+  },
+  "fluoxetine+tamoxifen": {
+    message: "⚠️ 플루옥세틴과 타목시펜 병용 시 타목시펜 효과 감소 가능",
+    reason: "플루옥세틴이 타목시펜 활성화를 억제합니다."
+  },
+  "rifampin+oral contraceptives": {
+    message: "⚠️ 리팜핀과 경구피임약 병용 시 피임 효과 감소",
+    reason: "리팜핀이 경구피임약 대사를 증가시킵니다."
+  },
+  "metformin+contrast media": {
+    message: "⚠️ 메트포르민과 조영제 병용 시 젖산산증 위험 증가",
+    reason: "조영제에 의한 신장 손상이 메트포르민 대사에 영향 줍니다."
+  },
+  "lisinopril+potassium supplements": {
+    message: "⚠️ 리시노프릴과 칼륨 보충제 병용 시 고칼륨혈증 위험",
+    reason: "둘 다 혈중 칼륨 상승을 유발할 수 있습니다."
+  },
+  "digoxin+spironolactone": {
+    message: "⚠️ 디곡신과 스피로놀락톤 병용 시 부정맥 위험 증가",
+    reason: "스피로놀락톤이 칼륨 농도를 변화시켜 디곡신 작용에 영향."
+  },
+  "phenytoin+oral contraceptives": {
+    message: "⚠️ 페니토인과 경구피임약 병용 시 피임 효과 감소 가능성",
+    reason: "페니토인이 피임약 대사를 촉진합니다."
+  },
+  "fluoxetine+triptans": {
+    message: "⚠️ 플루옥세틴과 트립탄 병용 시 세로토닌 증후군 위험 증가",
+    reason: "세로토닌 중추 과다 활성화 가능성."
+  },
+  "valproic acid+lamotrigine": {
+    message: "⚠️ 발프로산과 라모트리진 병용 시 라모트리진 농도 증가",
+    reason: "발프로산이 라모트리진 대사를 억제합니다."
+  }
+  // 필요한 만큼 계속 추가 가능
+};
+
+
+async function getRxcui(drugName) {
+  const url = `https://rxnav.nlm.nih.gov/REST/rxcui.json?name=${encodeURIComponent(drugName)}&search=1`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.idGroup && data.idGroup.rxnormId && data.idGroup.rxnormId.length > 0) {
+      return data.idGroup.rxnormId[0];
+    }
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+
+async function getInteraction(rxcui1, rxcui2) {
+  try {
+    const res = await fetch(`https://rxnav.nlm.nih.gov/REST/interaction/list.json?rxcuis=${rxcui1}+${rxcui2}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data.fullInteractionTypeGroup) return null;
+
+    const groups = data.fullInteractionTypeGroup;
+    for (const group of groups) {
+      for (const interactionType of group.fullInteractionType) {
+        const interactions = interactionType.interactionPair;
+        for (const pair of interactions) {
+          const rxcuiSet = [pair.interactionConcept[0].minConceptItem.rxcui, pair.interactionConcept[1].minConceptItem.rxcui];
+          if (rxcuiSet.includes(rxcui1) && rxcuiSet.includes(rxcui2)) {
+            // description은 문자열이라 바로 리턴
+            return pair.description || "상호작용이 발견되었습니다.";
+          }
+        }
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function renderResult(message, source = "") {
+  const resultDiv = document.getElementById("result");
+  if (!message) {
+    resultDiv.innerHTML = `<p class="ok">현재 알려진 특별한 상호작용이 없습니다.</p>`;
+  } else {
+    if (typeof message === "object") {
+      // 객체면 예쁘게 JSON 문자열로 변환해서 출력
+      message = JSON.stringify(message, null, 2);
+    }
+    const sourceText = source ? `<br/><small style="color:#666;">[출처: ${source}]</small>` : "";
+    resultDiv.innerHTML = `<pre class="warn">${message}</pre>${sourceText}`;
+  }
+}
+
+function normalizeDrugName(name) {
+  if (!name) return "";
+  name = name.trim().toLowerCase();
+  // 한글이면 영어 변환
+  for (const [kor, eng] of Object.entries(korToEngDrugMap)) {
+    if (kor.toLowerCase() === name) {
+      return eng;
+    }
+  }
+  return name;
+}
+
+async function checkInteraction() {
+  const drug1Input = document.getElementById("drug1");
+  const drug2Input = document.getElementById("drug2");
+  const resultDiv = document.getElementById("result");
+
+  let drug1 = normalizeDrugName(drug1Input.value);
+  let drug2 = normalizeDrugName(drug2Input.value);
+
+  if (!drug1 || !drug2) {
+    resultDiv.innerHTML = `<p class="danger">두 약 이름을 모두 입력해 주세요.</p>`;
+    return;
+  }
+
+  if (drug1 === drug2) {
+    resultDiv.innerHTML = `<p class="danger">같은 약 이름 두 개를 입력하셨습니다. 다른 약을 입력해 주세요.</p>`;
+    return;
+  }
+
+  resultDiv.innerHTML = `<p class="loading">상호작용 정보를 확인하는 중입니다...</p>`;
+
+  // 하드코딩 상호작용 먼저 체크
+  const hardKey1 = `${drug1}+${drug2}`;
+  const hardKey2 = `${drug2}+${drug1}`;
+  if (hardcodedInteractions[hardKey1]) {
+    const info = hardcodedInteractions[hardKey1];
+    renderResult(`${info.message}\n\n[이유] ${info.reason}`, "하드코딩 데이터");
+    return;
+  } else if (hardcodedInteractions[hardKey2]) {
+    const info = hardcodedInteractions[hardKey2];
+    renderResult(`${info.message}\n\n[이유] ${info.reason}`, "하드코딩 데이터");
+    return;
+  }
+
+  // RxNav API를 이용한 실시간 조회
+  const rxcui1 = await getRxcui(drug1);
+  const rxcui2 = await getRxcui(drug2);
+
+  if (!rxcui1 || !rxcui2) {
+    renderResult("하나 이상의 약에 대해 RXCUI를 찾을 수 없습니다. 약 이름을 다시 확인해 주세요.", "RxNav API");
+    return;
+  }
+
+  const interactionDesc = await getInteraction(rxcui1, rxcui2);
+
+  if (!interactionDesc) {
+    renderResult(null);
+  } else {
+    renderResult(interactionDesc, "RxNav API");
+  }
+}
+
+document.getElementById("checkBtn").addEventListener("click", checkInteraction);
+
+document.getElementById("drug1").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    document.getElementById("drug2").focus();
+  }
+});
+document.getElementById("drug2").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    checkInteraction();
+  }
+});
+</script>
+
+</body>
+</html>
