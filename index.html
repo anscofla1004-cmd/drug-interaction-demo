@@ -94,8 +94,10 @@
 
  <div class="container">
     <h2>💊 약물 병용 안전 체크</h2>
-    <input type="text" id="drug1" placeholder="첫 번째 약 이름 입력" />
-    <input type="text" id="drug2" placeholder="두 번째 약 이름 입력" />
+   <label for="drug1">첫 번째 약 이름</label>
+<input type="text" id="drug1" placeholder="예: 타이레놀, 이부프로펜, aspirin" autocomplete="off" />
+<label for="drug2">두 번째 약 이름</label>
+<input type="text" id="drug2" placeholder="예: 와파린, 아스피린, warfarin" autocomplete="off" />
     <button id="checkBtn">🔍 궁합 확인하기</button>
     <div id="result" class="result"></div>
   </div>
