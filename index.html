@@ -1,79 +1,105 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>내 약물 궁합 체크해봐요! 💊✨</title>
-<style>
-  body { 
-    font-family: 'Nanum Gothic', 'Apple SD Gothic Neo', '맑은 고딕', sans-serif; 
-    max-width: 600px; margin: 30px auto; padding: 25px; 
-    background: #fff9f5; color: #4a4a4a; 
-    line-height: 1.5;
-  }
-  h1 { 
-    text-align: center; color: #ff6f61; font-weight: 800; 
-    margin-bottom: 35px; font-size: 2.4rem;
-  }
-  label { 
-    font-weight: 700; font-size: 1.1rem; margin-top: 20px; display: block; 
-    color: #ff6f61;
-  }
-  input[type=text] {
-    width: 100%; padding: 12px 15px; margin-top: 7px; 
-    font-size: 1.05rem; border: 2px solid #ffb6a1; border-radius: 10px; 
-    box-sizing: border-box;
-    transition: border-color 0.3s ease;
-  }
-  input[type=text]:focus {
-    border-color: #ff6f61;
-    outline: none;
-    background: #fff1ec;
-  }
-  button {
-    margin-top: 28px; width: 100%; 
-    background: #ff6f61; color: white; border: none; 
-    padding: 14px; font-size: 1.25rem; cursor: pointer; border-radius: 12px; 
-    font-weight: 700;
-    box-shadow: 0 6px 12px rgba(255,111,97,0.4);
-    transition: background-color 0.3s ease;
-  }
-  button:hover {
-    background: #e95a4d;
-  }
-  #result {
-    margin-top: 30px; padding: 22px; border-radius: 14px; 
-    background: #fff1ec; box-shadow: 0 2px 8px rgba(255,111,97,0.2); 
-    min-height: 130px; white-space: pre-wrap;
-    color: #4a4a4a;
-    font-weight: 600;
-    font-size: 1.05rem;
-    overflow-wrap: break-word;
-  }
-  .ok { color: #2e7d32; font-weight: 700; }
-  .warn { color: #f9a825; font-weight: 700; }
-  .danger { color: #c62828; font-weight: 700; }
-  footer { 
-    margin-top: 45px; font-size: 13px; color: #aaa; text-align: center; 
-    font-style: italic;
-  }
-  .loading { font-style: italic; color: #b35348; font-weight: 600; }
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>약물 상호작용 확인</title>
+  <style>
+    body {
+      font-family: 'Noto Sans KR', sans-serif;
+      background-color: #F5F7FA;
+      color: #333;
+      margin: 0;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: auto;
+      background: #fff;
+      padding: 30px;
+      border-radius: 16px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.05);
+    }
+
+    h2 {
+      text-align: center;
+      color: #4A90E2;
+      font-size: 24px;
+      margin-bottom: 20px;
+    }
+
+    input {
+      padding: 12px;
+      margin: 8px 0;
+      width: calc(100% - 24px);
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      font-size: 16px;
+      background: #FAFBFD;
+      transition: border-color 0.2s;
+    }
+    input:focus {
+      border-color: #4A90E2;
+      outline: none;
+    }
+
+    button {
+      padding: 12px 18px;
+      background-color: #4A90E2;
+      border: none;
+      color: white;
+      font-size: 16px;
+      border-radius: 12px;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 12px;
+      transition: background-color 0.3s ease;
+    }
+    button:hover {
+      background-color: #357ABD;
+    }
+
+    .result {
+      margin-top: 25px;
+      padding: 18px;
+      border-radius: 12px;
+      background-color: #F0F4F8;
+      font-size: 15px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
+
+    .warn {
+      color: #FF6B6B;
+      font-weight: bold;
+    }
+
+    .ok {
+      color: #4CAF50;
+      font-weight: bold;
+    }
+
+    .danger {
+      color: #FF6B6B;
+      font-weight: bold;
+    }
+
+    .loading {
+      color: #4A90E2;
+    }
+  </style>
 </head>
 <body>
 
-<h1>내 약물 궁합 체크해봐요! 💊✨</h1>
-
-<label for="drug1">첫 번째 약 이름</label>
-<input type="text" id="drug1" placeholder="예: 타이레놀, 이부프로펜, aspirin" autocomplete="off" />
-
-<label for="drug2">두 번째 약 이름</label>
-<input type="text" id="drug2" placeholder="예: 와파린, 아스피린, warfarin" autocomplete="off" />
-
-<button id="checkBtn">궁합 확인하기</button>
-
-<div id="result" role="region" aria-live="polite"></div>
-
+ <div class="container">
+    <h2>💊 약물 상호작용 확인</h2>
+    <input type="text" id="drug1" placeholder="첫 번째 약 이름 입력" />
+    <input type="text" id="drug2" placeholder="두 번째 약 이름 입력" />
+    <button id="checkBtn">🔍 궁합 확인하기</button>
+    <div id="result" class="result"></div>
+  </div>
+  
 <footer>
 ⚠️ 참고용 서비스입니다. 전문가 상담을 꼭 받으세요.<br/>
 데이터 출처: 미국 NLM RxNav API (https://rxnav.nlm.nih.gov/)
