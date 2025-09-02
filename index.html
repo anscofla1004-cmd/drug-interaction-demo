@@ -100,10 +100,31 @@
     <div id="result" class="result"></div>
   </div>
   
-<footer>
-⚠️ 참고용 서비스입니다. 전문가 상담을 꼭 받으세요.<br/>
-데이터 출처: 미국 NLM RxNav API (https://rxnav.nlm.nih.gov/)
-</footer>
+<div class="footer">
+  ⚠️ 참고용 서비스입니다. 전문가 상담을 꼭 받으세요.<br/>
+  데이터 출처: 미국 NLM RxNav API 
+  (<a href="https://rxnav.nlm.nih.gov/" target="_blank">https://rxnav.nlm.nih.gov/</a>)
+</div>
+
+<style>
+  .footer {
+    text-align: center;
+    margin-top: 30px;
+    font-size: 13px;
+    color: #777;
+    line-height: 1.6;
+    font-style: italic;
+  }
+
+  .footer a {
+    color: #4A90E2;
+    text-decoration: none;
+  }
+  .footer a:hover {
+    text-decoration: underline;
+  }
+</style>
+
 
 <script>
 const korToEngDrugMap = {
