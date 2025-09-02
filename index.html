@@ -373,19 +373,22 @@ const hardcodedInteractions = {
 };
 
 
-async function getRxcui(drugName) {
-  const url = `https://rxnav.nlm.nih.gov/REST/rxcui.json?name=${encodeURIComponent(drugName)}&search=1`;
+function korToEng(drugName) {
+  const lowerName = drugName.trim().toLowerCase();
+  for (const [kor, eng] of Object.entries(korToEngDrugMap)) {
+    if (kor.toLowerCase() === lowerName) return eng;
+  }
+  return drugName.toLowerCase();
+}
+
+async function getRxCUI(drugName) {
+  const encoded = encodeURIComponent(drugName);
   try {
-    const res = await fetch(url);
+    const res = await fetch(`https://rxnav.nlm.nih.gov/REST/rxcui.json?name=${encoded}`);
     if (!res.ok) return null;
     const data = await res.json();
-    if (data.idGroup && data.idGroup.rxnormId && data.idGroup.rxnormId.length > 0) {
-      return data.idGroup.rxnormId[0];
-    }
-    return null;
-  } catch (e) {
-    return null;
-  }
+    return data.idGroup.rxnormId ? data.idGroup.rxnormId[0] : null;
+  } catch { return null; }
 }
 
 async function getInteraction(rxcui1, rxcui2) {
@@ -395,116 +398,68 @@ async function getInteraction(rxcui1, rxcui2) {
     const data = await res.json();
     if (!data.fullInteractionTypeGroup) return null;
 
-    const groups = data.fullInteractionTypeGroup;
-    for (const group of groups) {
-      for (const interactionType of group.fullInteractionType) {
-        const interactions = interactionType.interactionPair;
-        for (const pair of interactions) {
+    for (const group of data.fullInteractionTypeGroup) {
+      for (const type of group.fullInteractionType) {
+        for (const pair of type.interactionPair) {
           const rxcuiSet = [pair.interactionConcept[0].minConceptItem.rxcui, pair.interactionConcept[1].minConceptItem.rxcui];
           if (rxcuiSet.includes(rxcui1) && rxcuiSet.includes(rxcui2)) {
-            // description은 문자열이라 바로 리턴
-            return pair.description || "상호작용이 발견되었습니다.";
+            return { message: pair.description || "상호작용이 발견되었습니다.", reason: "" };
           }
         }
       }
     }
     return null;
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
 
-function renderResult(message, source = "") {
-  const resultDiv = document.getElementById("result");
-  if (!message) {
+function renderResult(info) {
+  const resultDiv = document.getElementById('result');
+  if (!info || !info.message) {
     resultDiv.innerHTML = `<p class="ok">현재 알려진 특별한 상호작용이 없습니다.</p>`;
   } else {
-    if (typeof message === "object") {
-      // 객체면 예쁘게 JSON 문자열로 변환해서 출력
-      message = JSON.stringify(message, null, 2);
-    }
-    const sourceText = source ? `<br/><small style="color:#666;">[출처: ${source}]</small>` : "";
-    resultDiv.innerHTML = `<pre class="warn">${message}</pre>${sourceText}`;
+    resultDiv.innerHTML = `
+      <p class="danger">${info.message}</p>
+      ${info.reason ? `<p>이유: <em>${info.reason}</em></p>` : ""}
+    `;
   }
 }
 
-function normalizeDrugName(name) {
-  if (!name) return "";
-  name = name.trim().toLowerCase();
-  // 한글이면 영어 변환
-  for (const [kor, eng] of Object.entries(korToEngDrugMap)) {
-    if (kor.toLowerCase() === name) {
-      return eng;
-    }
-  }
-  return name;
-}
+document.getElementById('checkBtn').addEventListener('click', async () => {
+  const input1 = document.getElementById('drug1').value.trim();
+  const input2 = document.getElementById('drug2').value.trim();
+  const resultDiv = document.getElementById('result');
+  resultDiv.innerHTML = `<p class="loading">조회 중입니다... 잠시만 기다려 주세요.</p>`;
 
-async function checkInteraction() {
-  const drug1Input = document.getElementById("drug1");
-  const drug2Input = document.getElementById("drug2");
-  const resultDiv = document.getElementById("result");
-
-  let drug1 = normalizeDrugName(drug1Input.value);
-  let drug2 = normalizeDrugName(drug2Input.value);
-
-  if (!drug1 || !drug2) {
-    resultDiv.innerHTML = `<p class="danger">두 약 이름을 모두 입력해 주세요.</p>`;
+  if (!input1 || !input2) {
+    resultDiv.innerHTML = `<p class="danger">두 약물명을 모두 입력해 주세요.</p>`;
     return;
   }
 
-  if (drug1 === drug2) {
-    resultDiv.innerHTML = `<p class="danger">같은 약 이름 두 개를 입력하셨습니다. 다른 약을 입력해 주세요.</p>`;
+  const drug1Eng = korToEng(input1);
+  const drug2Eng = korToEng(input2);
+
+  const key1 = `${drug1Eng}+${drug2Eng}`.toLowerCase();
+  const key2 = `${drug2Eng}+${drug1Eng}`.toLowerCase();
+
+  if (hardcodedInteractions[key1]) {
+    renderResult(hardcodedInteractions[key1]);
+    return;
+  }
+  if (hardcodedInteractions[key2]) {
+    renderResult(hardcodedInteractions[key2]);
     return;
   }
 
-  resultDiv.innerHTML = `<p class="loading">상호작용 정보를 확인하는 중입니다...</p>`;
-
-  // 하드코딩 상호작용 먼저 체크
-  const hardKey1 = `${drug1}+${drug2}`;
-  const hardKey2 = `${drug2}+${drug1}`;
-  if (hardcodedInteractions[hardKey1]) {
-    const info = hardcodedInteractions[hardKey1];
-    renderResult(`${info.message}\n\n[이유] ${info.reason}`, "하드코딩 데이터");
-    return;
-  } else if (hardcodedInteractions[hardKey2]) {
-    const info = hardcodedInteractions[hardKey2];
-    renderResult(`${info.message}\n\n[이유] ${info.reason}`, "하드코딩 데이터");
-    return;
-  }
-
-  // RxNav API를 이용한 실시간 조회
-  const rxcui1 = await getRxcui(drug1);
-  const rxcui2 = await getRxcui(drug2);
-
+  const [rxcui1, rxcui2] = await Promise.all([getRxCUI(drug1Eng), getRxCUI(drug2Eng)]);
   if (!rxcui1 || !rxcui2) {
-    renderResult("하나 이상의 약에 대해 RXCUI를 찾을 수 없습니다. 약 이름을 다시 확인해 주세요.", "RxNav API");
+    renderResult({ message: `"${input1}" 또는 "${input2}"에 해당하는 약물이 API에서 검색되지 않았습니다.`, reason: "" });
     return;
   }
 
-  const interactionDesc = await getInteraction(rxcui1, rxcui2);
-
-  if (!interactionDesc) {
-    renderResult(null);
-  } else {
-    renderResult(interactionDesc, "RxNav API");
-  }
-}
-
-document.getElementById("checkBtn").addEventListener("click", checkInteraction);
-
-document.getElementById("drug1").addEventListener("keydown", (e) => {
-  if (e.key === "Enter") {
-    e.preventDefault();
-    document.getElementById("drug2").focus();
-  }
+  const interactionInfo = await getInteraction(rxcui1, rxcui2);
+  renderResult(interactionInfo);
 });
-document.getElementById("drug2").addEventListener("keydown", (e) => {
-  if (e.key === "Enter") {
-    e.preventDefault();
-    checkInteraction();
-  }
-});
+
 </script>
 
 </body>
